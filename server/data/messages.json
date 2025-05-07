@@ -1,0 +1,42 @@
+[
+  {
+    "id": "88275e30-b310-4f3d-989a-c89dfe8d4696",
+    "sender": "+8613800138000",
+    "timestamp": 1746542396516,
+    "deviceId": "test-device-id-123",
+    "apiKey": "123456",
+    "createdAt": 1746542396516,
+    "encryptedContent": "gxKphqiP1a9Zf7u8fkEhHaaGczriZFr9PUMvliicddlT+3qi+VCXTiB7B/dIowmMF89uIXGcHI7k0uTi7gR9vWirEbtlbyRyt4a1bVr3f4wM4VOBG01gQZePrg==",
+    "iv": "YIXkQmpI5oYny1PY"
+  },
+  {
+    "id": "78c085bc-d48e-4670-8fd2-9a95e16b82ff",
+    "sender": "+8615900001234",
+    "timestamp": 1746625196516,
+    "deviceId": "test-device-id-456",
+    "apiKey": "123456",
+    "createdAt": 1746625196516,
+    "encryptedContent": "pyPrR+jUVrhdihn7jt208fr8f6ji/n0lQOPmL1JoJyPprzENap5drYdbWpWNPhEiCROfD7R1xSBT5+LDOkUhKquOaN6rE+MVGuT8C+3UcjRfwVibM6wlGRqhJ+eA3O2z",
+    "iv": "CHv3qzw1ISAjoqHi"
+  },
+  {
+    "id": "bcf13a5b-1923-47e9-a1c1-d73a16d30100",
+    "sender": "+8613800138000",
+    "timestamp": 1714234800000,
+    "encryptedContent": "hS1i+HMkaITCUKpj4fpAb4ZOcsY6+2ABrxD3xJ0Syy/aCqzIr9pEFIdGQcTgY+gfvWFW4g==",
+    "iv": "zO9gxRo1jOR4qck4",
+    "deviceId": "a21016f4-a906-43d1-a580-da17b0612ef3",
+    "apiKey": "123456",
+    "createdAt": 1714234800000
+  },
+  {
+    "id": "6c5673e2-8a23-4d71-bc9b-e2d912a722ef",
+    "sender": "+8615900001234",
+    "timestamp": 1714234900000,
+    "encryptedContent": "n8MYgAYOjEu1qzGDk+5KqNJdXxVbQyl8wDnaC6VQu4F+zzhaHechCbtA6a8RxuXHNd1DZtGshJQIcVaBU2lW9Uu6",
+    "iv": "WB4NjIuPbvycxDJr",
+    "deviceId": "test-device-id-456",
+    "apiKey": "123456",
+    "createdAt": 1714234900000
+  }
+]

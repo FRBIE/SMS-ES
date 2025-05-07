@@ -1,0 +1,262 @@
+# 安卓短信加密同步App - 实现规划文档
+
+## 1. 项目概述
+
+本项目旨在开发一款安卓App，能够实现以下核心功能：
+1.  **自动监听**：监听用户收到的短信。
+2.  **加密处理**：对收到的短信内容进行加密。
+3.  **数据上传**：将加密后的短信（包括发件人、时间戳、加密内容等）上传到用户指定的服务器。
+4.  **数据获取**：从指定服务器获取已加密的短信列表。
+5.  **解密显示**：对从服务器获取的加密短信进行解密，并在App内显示。
+6.  **用户配置**：允许用户配置服务器地址、API密钥（或认证凭据）以及加密密钥/密码。
+
+## 2. 核心功能模块
+
+| 模块名称           | 描述                                                                 |
+| ------------------ | -------------------------------------------------------------------- |
+| **短信监听模块**   | 接收系统广播的短信，提取短信内容、发件人、时间戳。                     |
+| **加密/解密模块**  | 提供对称加密（如AES）算法，用于加密短信内容和解密从服务器获取的内容。    |
+| **网络通信模块**   | 负责与指定服务器进行HTTP(S)通信，上传加密短信，下载加密短信列表。      |
+| **数据存储模块**   | （可选）本地存储已解密的短信，或缓存设置信息。                         |
+| **用户界面模块**   | 提供设置界面（服务器URL、认证信息、加密密码）、短信显示列表、同步按钮等。 |
+| **后台服务模块**   | （可选）确保短信监听和上传在后台可靠运行。                             |
+| **配置管理模块**   | 管理服务器地址、API密钥、加密密码等用户配置。                          |
+
+## 3. 技术选型
+
+*   **编程语言**: Kotlin (推荐) 或 Java
+*   **IDE**: Android Studio
+*   **最低Android SDK版本**: API 21 (Android 5.0 Lollipop) 或更高 (兼顾覆盖率和现代API)
+*   **核心库**:
+    *   **UI**: Material Components for Android (推荐), Jetpack Compose (可选, 学习曲线稍高)
+    *   **网络请求**: Retrofit + OkHttp (标准组合，易于处理JSON，支持拦截器等)
+    *   **JSON处理**: Gson 或 Moshi (与Retrofit集成良好)
+    *   **异步处理**: Kotlin Coroutines (推荐) 或 RxJava
+    *   **加密**: Java Cryptography Architecture (JCA) - `javax.crypto` 包 (AES)
+    *   **数据持久化 (本地)**:
+        *   SharedPreferences (用于存储用户配置)
+        *   Room Persistence Library (如果需要在本地存储大量解密后的短信)
+    *   **后台任务**: WorkManager (推荐，用于可靠的后台上传/下载) 或 Foreground Service (如果需要即时性)
+    *   **权限管理**: EasyPermissions (可选, 简化权限请求)
+
+## 4. 实现步骤
+
+### 阶段一：项目搭建与基础功能
+
+#### 4.1. 项目初始化与权限配置
+1.  **创建新项目**: 在Android Studio中创建一个新的安卓项目。
+2.  **添加依赖**: 在 `build.gradle` 文件中添加所需库的依赖（Retrofit, OkHttp, Gson/Moshi, Coroutines, Material Components）。
+3.  **权限申请**:
+    *   在 `AndroidManifest.xml` 中声明权限：
+        ```xml
+        <uses-permission android:name="android.permission.RECEIVE_SMS" />
+        <uses-permission android:name="android.permission.READ_SMS" /> <!-- 可选，用于读取已有短信或调试 -->
+        <uses-permission android:name="android.permission.INTERNET" />
+        <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- 如果使用前台服务 -->
+        <uses-permission android:name="android.permission.POST_NOTIFICATIONS" /> <!-- Android 13+ 前台服务通知 -->
+        ```
+    *   在代码中动态请求 `RECEIVE_SMS` 和 `POST_NOTIFICATIONS` (如果目标 API >= 33) 权限。
+
+#### 4.2. 用户界面 (UI) - 设置部分
+1.  **创建设置Activity/Fragment**:
+    *   输入框：服务器URL (e.g., `https://api.example.com/sms`)
+    *   输入框：API密钥/认证Token (用于服务器验证)
+    *   输入框：加密密码 (用于派生加密密钥)
+    *   保存按钮
+2.  **配置管理模块**:
+    *   使用 `SharedPreferences` 存储用户输入的服务器URL、API密钥和加密密码。
+    *   提供读取和保存这些配置的方法。
+
+#### 4.3. 加密/解密模块
+1.  **创建 `EncryptionHelper` 类**:
+    *   **加密方法 `encrypt(plainText: String, secretKey: SecretKey, iv: IvParameterSpec): Pair<String, String>`**:
+        *   输入：明文、密钥、初始化向量(IV)。
+        *   算法：AES/GCM/NoPadding (推荐, GCM提供认证加密)。
+        *   生成随机IV。
+        *   使用密钥和IV加密明文。
+        *   将加密后的字节数组和IV字节数组转换为Base64字符串返回。
+    *   **解密方法 `decrypt(cipherTextBase64: String, ivBase64: String, secretKey: SecretKey): String`**:
+        *   输入：Base64编码的密文、Base64编码的IV、密钥。
+        *   将Base64字符串转换为字节数组。
+        *   使用密钥和IV解密密文。
+        *   返回明文字符串。
+    *   **密钥派生方法 `deriveKey(password: String, salt: ByteArray): SecretKey`**:
+        *   输入：用户设置的密码、盐(salt)。
+        *   算法：PBKDF2WithHmacSHA256。
+        *   从密码派生出固定长度（如256位）的密钥。
+        *   **重要**: Salt应随机生成并与加密密码（或其哈希）一起存储，或者每次派生密钥时使用固定但App私有的Salt（安全性稍低）。为了简单起见，初始版本可以考虑从用户密码直接派生，但需提示用户密码强度。更安全的方式是为每个用户或设备生成独立的Salt。
+        *   **简化处理**：为简化，初版可考虑将用户输入的“加密密码”直接用作AES密钥（需确保其长度符合AES要求，如16、24、32字节，不足则填充，过长则截断，或进行哈希）。**强烈建议使用PBKDF2。**
+
+### 阶段二：短信监听与上传
+
+#### 4.4. 短信监听模块
+1.  **创建 `SmsReceiver` 类 (继承 `BroadcastReceiver`)**:
+    *   在 `onReceive` 方法中：
+        *   监听 `android.provider.Telephony.SMS_RECEIVED` action。
+        *   解析 `pdus` 获取短信内容、发件人号码、接收时间戳。
+        *   对于Android 6.0 (API 23) 及以上版本，确保已获得 `RECEIVE_SMS` 权限。
+2.  **注册 `BroadcastReceiver`**:
+    *   在 `AndroidManifest.xml` 中静态注册：
+      ```xml
+      <receiver android:name=".SmsReceiver" android:exported="true" android:permission="android.permission.BROADCAST_SMS">
+          <intent-filter>
+              <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+          </intent-filter>
+      </receiver>
+      ```
+    *   注意 `android:permission="android.permission.BROADCAST_SMS"` 确保只有系统可以发送此广播给你的接收器。
+
+#### 4.5. 后台处理与网络通信模块 (上传)
+1.  **启动后台任务**:
+    *   `SmsReceiver` 在接收到短信后，不应执行耗时操作。应启动一个 `WorkManager` 任务或 `IntentService` / `ForegroundService` 来处理加密和上传。
+    *   **WorkManager (推荐)**:
+        *   创建一个 `Worker` 类 (如 `UploadSmsWorker`)。
+        *   在 `doWork()` 方法中：
+            *   获取短信数据（发件人、内容、时间戳）。
+            *   从 `SharedPreferences` 读取加密密码，派生加密密钥。
+            *   调用 `EncryptionHelper.encrypt()` 加密短信内容。
+            *   调用网络模块上传。
+2.  **网络通信模块 (Retrofit)**:
+    *   **定义API接口 (`ApiService.kt`)**:
+      ```kotlin
+      interface ApiService {
+          @POST("sms/upload") // 服务器上传路径，示例
+          suspend fun uploadSms(
+              @Header("Authorization") apiKey: String, // 或其他认证方式
+              @Body smsData: EncryptedSmsRequest
+          ): Response<Unit> // 或自定义响应体
+      }
+
+      data class EncryptedSmsRequest(
+          val sender: String,
+          val timestamp: Long, // Unix timestamp
+          val encryptedContent: String, // Base64 encoded ciphertext
+          val iv: String // Base64 encoded IV
+          // val salt: String? // 如果salt是每个消息不同并随消息上传
+      )
+      ```
+    *   **创建Retrofit实例**: 配置OkHttpClient (设置超时、拦截器等) 和Gson/Moshi转换器。
+    *   **实现上传逻辑**:
+        *   在 `UploadSmsWorker` 中，构建 `EncryptedSmsRequest` 对象。
+        *   从 `SharedPreferences` 获取服务器URL和API密钥。
+        *   调用 `ApiService.uploadSms()`。
+        *   处理成功/失败响应，可以考虑重试机制 (WorkManager支持)。
+
+### 阶段三：数据获取与解密显示
+
+#### 4.6. 用户界面 (UI) - 短信列表
+1.  **创建主Activity/Fragment**:
+    *   使用 `RecyclerView` 显示短信列表。
+    *   每个列表项显示：发件人、解密后的短信内容（部分）、时间戳。
+    *   添加“同步/刷新”按钮。
+    *   导航到设置界面的入口。
+
+#### 4.7. 网络通信模块 (下载)
+1.  **扩展 `ApiService.kt`**:
+    ```kotlin
+    interface ApiService {
+        // ... existing uploadSms method ...
+
+        @GET("sms/download") // 服务器下载路径，示例
+        suspend fun downloadSms(
+            @Header("Authorization") apiKey: String,
+            @Query("since_timestamp") sinceTimestamp: Long? = null // 可选，增量同步
+        ): Response<List<EncryptedSmsResponse>>
+    }
+
+    data class EncryptedSmsResponse(
+        val id: String, // 服务器端的消息ID
+        val sender: String,
+        val timestamp: Long,
+        val encryptedContent: String, // Base64 encoded ciphertext
+        val iv: String // Base64 encoded IV
+        // val salt: String?
+    )
+    ```
+2.  **实现下载逻辑**:
+    *   当用户点击“同步/刷新”按钮或App启动时：
+        *   启动一个后台任务 (Coroutine Scope / ViewModel Scope / WorkManager)。
+        *   从 `SharedPreferences` 获取服务器URL、API密钥、加密密码。
+        *   派生加密密钥。
+        *   调用 `ApiService.downloadSms()`。
+        *   对返回的 `List<EncryptedSmsResponse>` 中的每条记录：
+            *   调用 `EncryptionHelper.decrypt()` 解密 `encryptedContent`。
+            *   将解密后的信息（发件人、解密内容、时间戳）更新到UI的 `RecyclerView`。
+
+#### 4.8. 数据存储模块 (本地 - 可选但推荐)
+1.  **Room数据库 (如果需要持久化解密短信)**:
+    *   **Entity**: `DecryptedSms` (id, sender, decryptedBody, timestamp, serverMsgId, isSyncedUp, isSyncedDown)
+    *   **DAO**: `SmsDao` (insert, getAll, getById, delete)
+    *   **Database**: AppDatabase
+2.  **集成逻辑**:
+    *   下载后，解密短信并存入Room数据库。
+    *   UI从Room数据库加载数据并显示。
+    *   上传成功后，更新本地对应短信的 `isSyncedUp` 状态。
+
+### 阶段四：完善与优化
+
+#### 4.9. 错误处理与用户反馈
+1.  **网络错误**: 使用 `try-catch` 或Retrofit的 `Response` 对象检查网络请求的成功/失败，向用户显示Toast或Snackbar提示（如“服务器连接失败”、“上传失败”）。
+2.  **加解密错误**: 捕获 `GeneralSecurityException` 等异常，提示用户“解密失败，请检查加密密码是否正确”。
+3.  **权限问题**: 优雅地处理权限被拒绝的情况，引导用户去设置中开启。
+4.  **进度指示**: 在上传/下载时显示进度条或加载动画。
+
+#### 4.10. 后台服务可靠性 (Foreground Service)
+*   如果选择使用 `ForegroundService` (而不是 `WorkManager` 的长期任务) 来监听和即时上传短信：
+    *   在 `SmsReceiver` 中启动 `ForegroundService`。
+    *   服务启动时必须显示一个持久通知 (Android 8.0+)。
+    *   服务内部处理加密和上传逻辑。
+    *   注意服务的生命周期管理和电池优化问题 (如Doze模式)。
+    *   对于Android 13+ (API 33)，需要 `POST_NOTIFICATIONS` 权限来显示前台服务通知。
+
+#### 4.11. 安全性增强
+1.  **HTTPS**: 强制使用HTTPS与服务器通信。OkHttp默认支持，服务器端必须配置SSL证书。
+2.  **密钥管理**:
+    *   **绝对不要硬编码任何密钥或密码在代码中。**
+    *   用户设置的加密密码应妥善处理。考虑使用Android Keystore系统来保护用于派生AES密钥的主密码，或者至少对存储在SharedPreferences中的密码进行一次混淆（但这并非强加密）。
+    *   PBKDF2的Salt应妥善管理。如果为每个用户/设备生成唯一Salt，则此Salt需要与加密数据一起存储或以其他方式可靠恢复。
+3.  **API密钥安全**: 不要在客户端生成或存储过于敏感的服务器端主密钥。服务器应提供有时效性或特定权限的Token/API Key。
+4.  **服务器端安全**: 服务器端也需要进行身份验证、授权、输入验证、防止重放攻击等安全措施。
+
+## 5. 服务器端要求 (简述)
+
+虽然App主要关注客户端，但服务器端需要提供以下接口：
+*   **POST `/sms/upload`**:
+    *   接收JSON: `{ "sender": "...", "timestamp": ..., "encrypted_content": "...", "iv": "..." }`
+    *   进行身份验证 (e.g., 检查 `Authorization` Header中的API Key)。
+    *   存储接收到的加密数据到数据库。
+    *   返回成功/失败状态。
+*   **GET `/sms/download`**:
+    *   进行身份验证。
+    *   （可选）支持参数如 `since_timestamp` 用于增量获取。
+    *   从数据库查询属于该用户的加密短信。
+    *   返回JSON数组: `[ { "id": "...", "sender": "...", "timestamp": ..., "encrypted_content": "...", "iv": "..." }, ... ]`
+
+## 6. 测试计划
+
+*   单元测试：加密/解密逻辑，密钥派生。
+*   集成测试：短信接收 -> 加密 -> 上传流程；下载 -> 解密 -> 显示流程。
+*   UI测试：设置界面交互，列表显示。
+*   兼容性测试：不同Android版本、不同设备。
+*   边界测试：空短信、超长短信、特殊字符。
+*   网络异常测试：无网络、弱网、服务器错误。
+*   安全测试：检查敏感数据是否正确处理。
+
+## 7. 未来可能的增强功能
+
+*   **双向同步**: 支持在App内发送加密短信，并同步到服务器及其他设备。
+*   **端到端加密 (E2EE)**: 如果服务器不应能解密内容，则需使用更复杂的密钥交换机制（如Signal协议），密钥由用户完全掌控。
+*   **选择性同步**: 允许用户选择哪些联系人的短信需要同步。
+*   **自动删除旧短信**: 在服务器或本地自动删除超过一定期限的短信。
+*   **UI美化与用户体验提升**。
+*   **导出/导入配置和数据**。
+
+## 8. 免责声明与风险提示
+
+*   **安全责任**: 用户数据的安全性高度依赖于加密算法的正确实施、密钥管理的安全性以及服务器的安全性。任何环节的疏忽都可能导致数据泄露。
+*   **法律法规**: 短信备份和传输可能涉及隐私和当地法律法规，开发者和使用者需自行承担相关责任。
+*   **电池消耗**: 后台持续监听和网络活动可能会增加电池消耗。需进行优化。
+
+---
+
+这份文档提供了一个相对完整的实现蓝图。在实际开发中，可以根据具体需求和资源进行调整，并建议采用迭代开发的方式，逐步实现和完善各个模块。安全是此类应用的核心，务必给予最高优先级。

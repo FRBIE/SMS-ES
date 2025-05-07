@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="ic_launcher_background">#3DDC84</color>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="api_key">API密钥</string>
+    <string name="app_name">短信加密同步</string>
+    <string name="clear">清除</string>
+    <string name="encryption_password">加密密码</string>
+    <string name="error_empty_fields">请填写所有字段</string>
+    <string name="grant_permission">授予权限</string>
+    <string name="message">消息内容</string>
+    <string name="no_messages">没有短信</string>
+    <string name="permissions_required">需要短信接收权限</string>
+    <string name="save">保存</string>
+    <string name="sender">发送者</string>
+    <string name="server_url">服务器URL</string>
+    <string name="settings">设置</string>
+    <string name="settings_saved">设置已保存</string>
+    <string name="sync_failed">同步失败</string>
+    <string name="sync_now">立即同步</string>
+    <string name="sync_success">同步成功</string>
+    <string name="syncing">正在同步...</string>
+    <string name="time">时间</string>
+    <style name="Theme.SmsEncryptSync" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        <item name="colorSecondary">@color/teal_200</item>
+        <item name="colorSecondaryVariant">@color/teal_700</item>
+        <item name="colorOnSecondary">@color/black</item>
+        
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+    </style>
+</resources>
